@@ -3,11 +3,12 @@ import PlaygroundSupport
 
 PlaygroundPage.current.needsIndefiniteExecution = true
 
-//Это нужно просто для подсчета и для принтов
+//MARK: Count the number of chips
 var numberOfChipsAdded = 0
 var numberOfChipsRemoved = 0
 var numberOfSolderedChips = 0
 
+//MARK: - Struct Chip
 public struct Chip {
     public enum ChipType: UInt32 {
         case small = 1
@@ -17,6 +18,7 @@ public struct Chip {
 
     public let chipType: ChipType
 
+    //MARK: Make Chip
     public static func make() -> Chip {
         guard let chipType = Chip.ChipType(rawValue: UInt32(arc4random_uniform(3) + 1)) else {
             fatalError("Incorrect random value")
@@ -24,7 +26,8 @@ public struct Chip {
 
         return Chip(chipType: chipType)
     }
-
+    
+    //MARK: Sodering Chip
     public func sodering() {
         let soderingTime = chipType.rawValue
         sleep(UInt32(soderingTime))
@@ -33,11 +36,17 @@ public struct Chip {
     }
 }
 
+//MARK: - Storage class
 class Storage {
     private let condition = NSCondition()
-    var storageForChip: [Chip] = []
+    private var storageForChip: [Chip] = []
     var availables = false
-
+    
+    var isEmpty: Bool {
+        return storageForChip.isEmpty
+    }
+    
+    //MARK: Add Chips to storage
     func push(item: Chip) {
         condition.lock()
         storageForChip.append(item)
@@ -50,6 +59,7 @@ class Storage {
         condition.unlock()
     }
 
+    //MARK: Add Chips to storage
     func pop() -> Chip {
         condition.lock()
 
@@ -59,13 +69,16 @@ class Storage {
         }
         
         print("Получил сигнал")
-        availables = false
+        let lastChip = storageForChip.removeLast()
         condition.unlock()
-
-        return storageForChip.removeLast()
+        if isEmpty {
+            availables = false
+        }
+        return lastChip
     }
 }
 
+//MARK: - Generation Thread
 class GeneratingThread: Thread {
     private let storage: Storage
     private var timer = Timer()
@@ -93,6 +106,7 @@ class GeneratingThread: Thread {
     }
 }
 
+//MARK: - Work Thread
 class WorkThread: Thread {
     private let storage: Storage
 
@@ -106,11 +120,10 @@ class WorkThread: Thread {
             numberOfChipsRemoved += 1
             print("Кол-во удаленных чипов из массива - \(numberOfChipsRemoved)")
             
-        } while storage.storageForChip.isEmpty || storage.availables
+        } while storage.isEmpty || storage.availables
     }
 }
   
-
 let storage = Storage()
 let generatingThread = GeneratingThread(storage: storage, timerIteration: 2, generationTime: 20)
 let workThread = WorkThread(storage: storage)
